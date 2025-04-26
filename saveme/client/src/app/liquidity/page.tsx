@@ -2,23 +2,24 @@
 
 import { useState } from 'react'
 import { ethers } from 'ethers'
-import { useAccount, useSigner } from 'wagmi'
+import { useAccount, useProvider } from 'wagmi'
 import ERC20Abi from '../../abis/ERC20.json'
 import LiquidityPoolAbi from '../../abis/LiquidityPool.json'
 
 export default function LiquidityPage() {
   const { address } = useAccount()
-  const { data: signer } = useSigner()
-  const [tokenAmt, setTokenAmt] = useState('1000')
-  const [ethAmt, setEthAmt]   = useState('0.1')
-  const [status, setStatus]   = useState<string | null>(null)
+  const provider = useProvider()
+  const signer = provider.getSigner()
 
-  // pulled from your .env.local
-  const poolAddress  = process.env.NEXT_PUBLIC_LIQUIDITY_POOL_ADDRESS!
+  const [tokenAmt, setTokenAmt] = useState('1000')
+  const [ethAmt, setEthAmt] = useState('0.1')
+  const [status, setStatus] = useState<string | null>(null)
+
+  const poolAddress = process.env.NEXT_PUBLIC_LIQUIDITY_POOL_ADDRESS!
   const tokenAddress = process.env.NEXT_PUBLIC_TOKEN_FACTORY_LP_ADDRESS!
 
   const handleAddLiquidity = async () => {
-    if (!signer || !address) {
+    if (!address) {
       return setStatus('🔌 Connect your wallet first.')
     }
     try {
