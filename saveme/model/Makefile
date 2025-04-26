@@ -1,8 +1,8 @@
 # Makefile for Blockchain Anomaly Detection
 
 # Install all the dependencies specified in requirements.txt
-install:
-	pip install -r requirements.txt
+# install:
+# 	pip install -r requirements.txt
 
 # Run the application (main.py)
 run:

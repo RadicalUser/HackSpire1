@@ -14,12 +14,18 @@ import numpy as np
 from datetime import datetime
 from multiprocessing import freeze_support
 from dotenv import load_dotenv
+import sys
+import shutil
 
-from .api.etherscan_api import EtherscanAPI
-from .data_processing.data_cleaning import DataCleaner
-from .data_processing.data_transformation import DataTransformer
-from .anomaly_detection.isolation_forest import AnomalyDetectorIsolationForest
-from .utils.logger import get_logger
+# Add the parent directory to sys.path to enable imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Import from local modules using absolute imports
+from src.api.etherscan_api import EtherscanAPI
+from src.data_processing.data_cleaning import DataCleaner
+from src.data_processing.data_transformation import DataTransformer
+from src.anomaly_detection.isolation_forest import AnomalyDetectorIsolationForest
+from src.utils.logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -51,14 +57,34 @@ def setup_environment():
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-def train_model(data=None):
+def train_model(data=None, input_file=None):
     """
     Train the anomaly detection model using either provided data or fetching from Etherscan.
     
     :param data: Optional DataFrame or list of transactions for training
+    :param input_file: Optional file path to load transactions from
     :return: Trained model
     """
     try:
+        # First, try to use provided data or input file
+        if data is None and input_file is not None:
+            logger.info(f"Loading transactions from {input_file} for training")
+            try:
+                with open(input_file, 'r') as f:
+                    json_data = json.load(f)
+                    transactions = json_data.get('transactions', [])
+                    
+                if not transactions:
+                    logger.warning(f"No transactions found in {input_file}")
+                    raise ValueError(f"No transactions found in {input_file}")
+                    
+                data = pd.DataFrame(transactions)
+                logger.info(f"Loaded {len(transactions)} transactions from file for training")
+            except Exception as e:
+                logger.error(f"Error loading transactions from file: {str(e)}")
+                raise
+                
+        # If still no data, try to fetch from Etherscan
         if data is None:
             # Fetch data from Etherscan
             api_key = os.getenv("ETHERSCAN_API_KEY")
@@ -86,10 +112,15 @@ def train_model(data=None):
         
         # Train model
         detector = AnomalyDetectorIsolationForest(transformed_data)
+        detector.prepare_features()
         detector.train_model()
         
         # Save model
-        detector.save_model()
+        saved = detector.save_model()
+        if saved:
+            logger.info("Model trained and saved successfully")
+        else:
+            logger.warning("Model trained but could not be saved")
         
         return detector
     
@@ -119,10 +150,43 @@ def detect_anomalies(transactions, model_path='models'):
         transformer = DataTransformer(cleaned_data)
         transformed_data = transformer.transform_data()
         
-        # Load model and detect anomalies
-        detector = AnomalyDetectorIsolationForest.load_model(model_path)
-        detector.df = transformed_data
-        detector.prepare_features()  # Now safe to call after setting df
+        # Check if model exists
+        model_files_exist = (
+            os.path.exists(os.path.join(model_path, 'isolation_forest.joblib')) and
+            os.path.exists(os.path.join(model_path, 'scaler.joblib')) and
+            os.path.exists(os.path.join(model_path, 'thresholds.joblib'))
+        )
+        
+        # If model doesn't exist or there's a version compatibility issue, train a new one
+        detector = None
+        try:
+            if model_files_exist:
+                detector = AnomalyDetectorIsolationForest.load_model(model_path)
+        except Exception as e:
+            logger.warning(f"Could not load model: {str(e)}")
+            logger.info("Will train a new model with current data")
+            
+            # Remove old model files that might be corrupt or incompatible
+            for filename in ['isolation_forest.joblib', 'scaler.joblib', 'thresholds.joblib']:
+                file_path = os.path.join(model_path, filename)
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                        logger.info(f"Removed old model file: {file_path}")
+                    except Exception as del_err:
+                        logger.warning(f"Could not remove old file {file_path}: {str(del_err)}")
+        
+        # If model couldn't be loaded, train a new one
+        if detector is None:
+            detector = AnomalyDetectorIsolationForest(transformed_data)
+            detector.prepare_features()
+            detector.train_model()
+            detector.save_model(model_path)
+        else:
+            # Set data for existing detector
+            detector.df = transformed_data
+            detector.prepare_features()
+            
         results_df = detector.detect_anomalies()
         
         # Extract results
@@ -152,9 +216,9 @@ def process_json_input(input_file, output_file=None, should_train=False):
             raise ValueError("No transactions found in input file")
         
         # Train model if requested or if no model exists
-        if should_train or not os.path.exists('models/isolation_forest.joblib'):
-            logger.info("Training new model...")
-            train_model(transactions)
+        if should_train:
+            logger.info("Training new model using input file data...")
+            train_model(input_file=input_file)
         
         # Detect anomalies
         results = detect_anomalies(transactions)
@@ -188,9 +252,12 @@ def main():
     try:
         setup_environment()
         
-        if args.fetch or args.train:
-            logger.info("Training new model...")
+        if args.fetch:
+            logger.info("Fetching new training data from Etherscan...")
             train_model()
+        elif args.input and args.train:
+            logger.info(f"Training new model with data from {args.input}")
+            train_model(input_file=args.input)
         
         if args.input:
             logger.info(f"Processing transactions from {args.input}")

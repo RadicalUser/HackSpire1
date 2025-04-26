@@ -7,6 +7,7 @@ different modules of the application.
 
 Adheres to the principle of Single Responsibility by isolating all configuration data.
 """
+import logging
 
 # Etherscan API Key - Used to authenticate requests to the Etherscan API
 API_KEY = "YOUR_ETHERSCAN_API_KEY"
@@ -24,5 +25,7 @@ RETRY_BACKOFF = 2  # Backoff multiplier for retries
 # Environment settings
 ENVIRONMENT = "development"  # Change to "production" in production environment
 
-# Logging level (can be "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
-LOG_LEVEL = "INFO"
+# Logging level 
+LOG_LEVEL_STR = "INFO"
+# Convert string to actual logging level
+LOG_LEVEL = getattr(logging, LOG_LEVEL_STR)

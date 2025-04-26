@@ -8,7 +8,7 @@ Adheres to the Single Responsibility Principle (SRP) by focusing solely on data 
 """
 
 import pandas as pd
-from utils.logger import get_logger
+from ..utils.logger import get_logger  # Use relative import
 
 # Initialize logger
 logger = get_logger(__name__)
