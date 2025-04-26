@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "wagmi": "^2.15.0"
+  }
+}

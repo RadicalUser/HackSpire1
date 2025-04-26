@@ -1,5 +1,5 @@
 // File: contract/ignition/modules/TokenFactoryLPModule.js
-const { buildModule } = require("@nomicfoundation/hardhat-ignition/modules");
+const {buildModule} = require("@nomicfoundation/hardhat-ignition/modules");
 const { ethers } = require("ethers");
 
 module.exports = buildModule("TokenFactoryLPModule", (m) => {
