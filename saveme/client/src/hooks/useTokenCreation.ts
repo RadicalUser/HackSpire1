@@ -39,7 +39,7 @@ export function useTokenCreation() {
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
       hash,
-      enabled: !!hash,
+      enabled: hash,
     });
 
   // Watch for TokenCreated events
