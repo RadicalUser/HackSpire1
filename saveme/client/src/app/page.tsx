@@ -18,7 +18,7 @@ export default function Home() {
             className="text-4xl md:text-6xl lg:text-7xl font-semibold mb-1 text-white"
           />
           <BlurText
-            text="rug-pull"
+            text="Fraud"
             delay={0.05}
             animateBy="letters"
             direction="top"

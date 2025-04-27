@@ -1,3 +1,4 @@
+// useTokenCreation.ts
 import { useState } from 'react';
 import {
   useWriteContract,
@@ -7,7 +8,6 @@ import {
 import { parseEther } from 'viem';
 import { TokenFactoryABI } from '../lib/abi/TokenFactoryABI';
 
-// Token Factory contract address - replace with your deployed contract address
 const TOKEN_FACTORY_ADDRESS =
   '0x5FbDB2315678afecb367f032d93F642f64180aa3' as const;
 
@@ -21,90 +21,20 @@ interface TokenCreatedEvent {
 
 export function useTokenCreation() {
   const [isLoading, setIsLoading] = useState(false);
-  const [newTokenAddress, setNewTokenAddress] = useState<`0x${string}` | null>(
-    null,
-  );
-  const [creationData, setCreationData] = useState<TokenCreatedEvent | null>(
-    null,
-  );
+  const [newTokenAddress, setNewTokenAddress] = useState<`0x${string}` | null>(null);
+  const [creationData, setCreationData] = useState<TokenCreatedEvent | null>(null);
 
-  const {
-    writeContract,
-    isPending,
-    isError,
-    error,
-    data: hash,
-  } = useWriteContract();
-
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({
-      hash,
-      enabled: hash,
-    });
-
-  // Watch for TokenCreated events
-  useWatchContractEvent({
-    address: TOKEN_FACTORY_ADDRESS,
-    abi: TokenFactoryABI,
-    eventName: 'TokenCreated',
-    onLogs: (logs) => {
-      if (logs && logs.length > 0) {
-        const log = logs[0];
-        const { args } = log;
-
-        if (args) {
-          const tokenData = {
-            tokenAddress: args.tokenAddress as `0x${string}`,
-            name: args.name as string,
-            symbol: args.symbol as string,
-            initialSupply: args.initialSupply as bigint,
-            creator: args.creator as `0x${string}`,
-          };
-
-          console.log('Token created event detected:', tokenData);
-          setNewTokenAddress(tokenData.tokenAddress);
-          setCreationData(tokenData);
-          setIsLoading(false);
-
-          // Log successful token creation
-          console.log('New token created and added to state:', {
-            address: tokenData.tokenAddress,
-            name: tokenData.name,
-            symbol: tokenData.symbol,
-          });
-
-          // Direct save to database without waiting for the UI to do it
-          saveTokenToDatabase(
-            tokenData.tokenAddress,
-            tokenData.name,
-            tokenData.symbol,
-            tokenData.initialSupply.toString(),
-          );
-        }
-      }
-    },
-  });
-
-  // Internal function to directly save token data to database
+  // — Helpers for DB persistence —
   const saveTokenToDatabase = async (
     tokenAddress: `0x${string}`,
     name: string,
     symbol: string,
-    supply: string,
+    supply: string
   ) => {
     try {
-      console.log('Directly saving token to database:', {
-        tokenAddress,
-        name,
-        symbol,
-        supply,
-      });
-
-      const response = await fetch('/api/savecoin', {
+      const res = await fetch('/api/savecoin', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageBuffer: '',
           tokenAddress,
@@ -113,73 +43,100 @@ export function useTokenCreation() {
           initialSupply: supply,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to save token directly');
-      }
-
-      const result = await response.json();
-      console.log('Direct token save result:', result);
-      return result;
-    } catch (error) {
-      console.error('Error in direct token save:', error);
+      if (!res.ok) throw new Error('Failed to save token');
+      return await res.json();
+    } catch (err) {
+      console.error('DB save error:', err);
       return null;
     }
   };
 
-  // Save token data to MongoDB
   const saveTokenImage = async (
     tokenAddress: `0x${string}`,
-    imageData: string,
+    imageData: string
   ) => {
     if (!imageData) return null;
-
-    console.log('Attempting to save token image for:', tokenAddress);
-
     try {
-      // Extract base64 data from image
-      const base64Data = imageData.split(',')[1];
-
-      console.log('Sending token data to API:', {
-        tokenAddress,
-        tokenName: creationData?.name,
-        tokenSymbol: creationData?.symbol,
-        hasImage: !!base64Data,
-      });
-
-      const response = await fetch('/api/savecoin', {
+      const base64 = imageData.split(',')[1];
+      const res = await fetch('/api/savecoin', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageBuffer: base64Data,
+          imageBuffer: base64,
           tokenAddress,
           tokenName: creationData?.name,
           tokenSymbol: creationData?.symbol,
           initialSupply: creationData?.initialSupply?.toString(),
         }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('API error response:', errorData);
-        throw new Error(
-          `Failed to save token image: ${errorData.error || 'Unknown error'}`,
-        );
-      }
-
-      const data = await response.json();
-      console.log('Token saved successfully:', data);
-      return data;
-    } catch (error) {
-      console.error('Error saving token image:', error);
+      if (!res.ok) throw new Error('Failed to save token image');
+      return await res.json();
+    } catch (err) {
+      console.error('Image save error:', err);
       return null;
     }
   };
 
-  // Create token function
-  const createToken = (name: string, symbol: string, initialSupply: string) => {
+  // — Write the contract and grab its tx.hash directly —
+  const {
+    writeContract,
+    isPending,
+    isError,
+    error,
+    data: hash,
+  } = useWriteContract();
+
+  // — Wait for that hash (string) to be mined —
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({ hash, enabled: !!hash });
+
+  // — Watch & decode the TokenCreated event —
+  useWatchContractEvent({
+    address: TOKEN_FACTORY_ADDRESS,
+    abi: TokenFactoryABI,
+    eventName: 'TokenCreated',
+    // onLogs gives you an array of decoded EventLog objects
+    onLogs: (logs) => {
+      if (!logs?.length) return;
+      // wagmi decodes args for you
+      const log = logs[0] as any;
+      const args = log.args as {
+        tokenAddress: `0x${string}`;
+        name: string;
+        symbol: string;
+        initialSupply: bigint;
+        creator: `0x${string}`;
+      };
+
+      const tokenData: TokenCreatedEvent = {
+        tokenAddress: args.tokenAddress,
+        name: args.name,
+        symbol: args.symbol,
+        initialSupply: args.initialSupply,
+        creator: args.creator,
+      };
+
+      console.log('TokenCreated event:', tokenData);
+      setNewTokenAddress(tokenData.tokenAddress);
+      setCreationData(tokenData);
+      setIsLoading(false);
+
+      // Persist immediately
+      saveTokenToDatabase(
+        tokenData.tokenAddress,
+        tokenData.name,
+        tokenData.symbol,
+        tokenData.initialSupply.toString()
+      );
+    },
+  });
+
+  // — Exposed function to kick off creation —
+  const createToken = (
+    name: string,
+    symbol: string,
+    initialSupply: string
+  ) => {
     setIsLoading(true);
     setNewTokenAddress(null);
     setCreationData(null);
