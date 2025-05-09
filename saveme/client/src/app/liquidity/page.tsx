@@ -6,6 +6,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ethers } from 'ethers';
+import LiquidityPoolABI from '@/src/abis/LiquidityPool.json';
+
+const LIQUIDITY_POOL_ADDRESS = '0xYourContractAddressHere'; // Replace with the actual contract address
 
 export default function LiquidityPage() {
   const [ethAmount, setEthAmount] = useState('')
@@ -13,6 +17,84 @@ export default function LiquidityPage() {
   const [lpShares, setLpShares] = useState('')
   const [minOutTokens, setMinOutTokens] = useState('')
   const [minOutEth, setMinOutEth] = useState('')
+
+  const provider = new ethers.providers.Web3Provider(window.ethereum);
+  const signer = provider.getSigner();
+  const liquidityPoolContract = new ethers.Contract(
+    LIQUIDITY_POOL_ADDRESS,
+    LiquidityPoolABI,
+    signer
+  );
+
+  const initializePool = async () => {
+    try {
+      const tx = await liquidityPoolContract.initializePool(
+        ethers.utils.parseEther(ethAmount),
+        ethers.utils.parseUnits(tokenAmount, 18) // Assuming token has 18 decimals
+      );
+      await tx.wait();
+      alert('Pool initialized successfully!');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to initialize pool.');
+    }
+  };
+
+  const depositLiquidity = async () => {
+    try {
+      const tx = await liquidityPoolContract.deposit(
+        ethers.utils.parseEther(ethAmount),
+        { value: ethers.utils.parseEther(ethAmount) }
+      );
+      await tx.wait();
+      alert('Liquidity deposited successfully!');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to deposit liquidity.');
+    }
+  };
+
+  const withdrawLiquidity = async () => {
+    try {
+      const tx = await liquidityPoolContract.withdraw(
+        ethers.utils.parseUnits(lpShares, 18)
+      );
+      await tx.wait();
+      alert('Liquidity withdrawn successfully!');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to withdraw liquidity.');
+    }
+  };
+
+  const swapEthToToken = async () => {
+    try {
+      const tx = await liquidityPoolContract.swapEthToToken(
+        ethers.utils.parseEther(ethAmount),
+        ethers.utils.parseUnits(minOutTokens, 18),
+        { value: ethers.utils.parseEther(ethAmount) }
+      );
+      await tx.wait();
+      alert('Swap ETH to Token successful!');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to swap ETH to Token.');
+    }
+  };
+
+  const swapTokenToEth = async () => {
+    try {
+      const tx = await liquidityPoolContract.swapTokenToEth(
+        ethers.utils.parseUnits(tokenAmount, 18),
+        ethers.utils.parseEther(minOutEth)
+      );
+      await tx.wait();
+      alert('Swap Token to ETH successful!');
+    } catch (error) {
+      console.error(error);
+      alert('Failed to swap Token to ETH.');
+    }
+  };
 
   return (
     <div className="p-8 space-y-6">
@@ -40,7 +122,7 @@ export default function LiquidityPage() {
               onChange={e => setTokenAmount(e.target.value)}
             />
           </div>
-          <Button>Init Pool</Button>
+          <Button variant="outline" onClick={initializePool}>Init Pool</Button>
         </CardContent>
       </Card>
 
@@ -59,7 +141,7 @@ export default function LiquidityPage() {
               onChange={e => setEthAmount(e.target.value)}
             />
           </div>
-          <Button variant="outline">Deposit</Button>
+          <Button variant="outline" onClick={depositLiquidity}>Deposit</Button>
         </CardContent>
       </Card>
 
@@ -78,7 +160,7 @@ export default function LiquidityPage() {
               onChange={e => setLpShares(e.target.value)}
             />
           </div>
-          <Button variant="destructive">Withdraw</Button>
+          <Button variant="destructive" onClick={withdrawLiquidity}>Withdraw</Button>
         </CardContent>
       </Card>
 
@@ -104,7 +186,7 @@ export default function LiquidityPage() {
               value={minOutTokens}
               onChange={e => setMinOutTokens(e.target.value)}
             />
-            <Button className="mt-2">Swap ETH → Token</Button>
+            <Button className="mt-2" variant="outline" onClick={swapEthToToken}>Swap ETH → Token</Button>
           </div>
 
           {/* Token → ETH */}
@@ -123,7 +205,7 @@ export default function LiquidityPage() {
               value={minOutEth}
               onChange={e => setMinOutEth(e.target.value)}
             />
-            <Button variant="outline" className="mt-2">Swap Token → ETH</Button>
+            <Button variant="outline" className="mt-2" onClick={swapTokenToEth}>Swap Token → ETH</Button>
           </div>
         </CardContent>
       </Card>
