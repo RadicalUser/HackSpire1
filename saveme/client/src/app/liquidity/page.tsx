@@ -1,7 +1,7 @@
 // Path: client/src/app/liquidity/page.tsx
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { ethers } from 'ethers';
 import LiquidityPoolABI from '@/src/abis/LiquidityPool.json';
 
-const LIQUIDITY_POOL_ADDRESS = '0xYourContractAddressHere'; // Replace with the actual contract address
+const LIQUIDITY_POOL_ADDRESS = '0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6'; // Replace with the actual contract address
 
 export default function LiquidityPage() {
   const [ethAmount, setEthAmount] = useState('')
@@ -17,82 +17,122 @@ export default function LiquidityPage() {
   const [lpShares, setLpShares] = useState('')
   const [minOutTokens, setMinOutTokens] = useState('')
   const [minOutEth, setMinOutEth] = useState('')
+  const [liquidityPoolContract, setLiquidityPoolContract] = useState<ethers.Contract | null>(null);
 
-  const provider = new ethers.providers.Web3Provider(window.ethereum);
-  const signer = provider.getSigner();
-  const liquidityPoolContract = new ethers.Contract(
-    LIQUIDITY_POOL_ADDRESS,
-    LiquidityPoolABI,
-    signer
-  );
+  useEffect(() => {
+    const initializeContract = async () => {
+      if (!window.ethereum) {
+        alert('MetaMask is not installed. Please install it to use this feature.');
+        return;
+      }
+
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(
+          LIQUIDITY_POOL_ADDRESS,
+          LiquidityPoolABI,
+          signer
+        );
+        setLiquidityPoolContract(contract);
+      } catch (error) {
+        console.error('Failed to initialize contract:', error);
+        alert('Failed to connect to the blockchain. Please try again.');
+      }
+    };
+
+    initializeContract();
+  }, []);
 
   const initializePool = async () => {
+    if (!liquidityPoolContract) {
+      alert('Contract is not initialized. Please refresh the page.');
+      return;
+    }
+
     try {
       const tx = await liquidityPoolContract.initializePool(
-        ethers.utils.parseEther(ethAmount),
-        ethers.utils.parseUnits(tokenAmount, 18) // Assuming token has 18 decimals
+        ethers.parseEther(ethAmount),
+        ethers.parseUnits(tokenAmount, 18) // Assuming token has 18 decimals
       );
       await tx.wait();
       alert('Pool initialized successfully!');
     } catch (error) {
-      console.error(error);
-      alert('Failed to initialize pool.');
+      console.error('Failed to initialize pool:', error);
+      alert('Failed to initialize pool. Please check the console for details.');
     }
   };
 
   const depositLiquidity = async () => {
+    if (!liquidityPoolContract) {
+      alert('Contract is not initialized. Please refresh the page.');
+      return;
+    }
+
     try {
       const tx = await liquidityPoolContract.deposit(
-        ethers.utils.parseEther(ethAmount),
-        { value: ethers.utils.parseEther(ethAmount) }
+        ethers.parseEther(ethAmount),
+        { value: ethers.parseEther(ethAmount) }
       );
       await tx.wait();
       alert('Liquidity deposited successfully!');
     } catch (error) {
-      console.error(error);
-      alert('Failed to deposit liquidity.');
+      console.error('Failed to deposit liquidity:', error);
+      alert('Failed to deposit liquidity. Please check the console for details.');
     }
   };
 
   const withdrawLiquidity = async () => {
+    if (!liquidityPoolContract) {
+      alert('Contract is not initialized. Please refresh the page.');
+      return;
+    }
+
     try {
       const tx = await liquidityPoolContract.withdraw(
-        ethers.utils.parseUnits(lpShares, 18)
+        ethers.parseUnits(lpShares, 18)
       );
       await tx.wait();
       alert('Liquidity withdrawn successfully!');
     } catch (error) {
-      console.error(error);
-      alert('Failed to withdraw liquidity.');
+      console.error('Failed to withdraw liquidity:', error);
+      alert('Failed to withdraw liquidity. Please check the console for details.');
     }
   };
 
   const swapEthToToken = async () => {
+    if (!liquidityPoolContract) {
+      alert('Contract is not initialized. Please refresh the page.');
+      return;
+    }
+
     try {
-      const tx = await liquidityPoolContract.swapEthToToken(
-        ethers.utils.parseEther(ethAmount),
-        ethers.utils.parseUnits(minOutTokens, 18),
-        { value: ethers.utils.parseEther(ethAmount) }
-      );
+      const tx = await liquidityPoolContract.swapEthForTokens({
+        value: ethers.parseEther(ethAmount),
+      });
       await tx.wait();
       alert('Swap ETH to Token successful!');
     } catch (error) {
-      console.error(error);
-      alert('Failed to swap ETH to Token.');
+      console.error('Failed to swap ETH to Token:', error);
+      alert('Failed to swap ETH to Token. Please check the console for details.');
     }
   };
 
   const swapTokenToEth = async () => {
+    if (!liquidityPoolContract) {
+      alert('Contract is not initialized. Please refresh the page.');
+      return;
+    }
+
     try {
-      const tx = await liquidityPoolContract.swapTokenToEth(
-        ethers.utils.parseUnits(tokenAmount, 18),
-        ethers.utils.parseEther(minOutEth)
+      const tx = await liquidityPoolContract.swap(
+        ethers.parseUnits(tokenAmount, 18)
       );
       await tx.wait();
       alert('Swap Token to ETH successful!');
     } catch (error) {
-      console.error(error);
-      alert('Failed to swap Token to ETH.');
+      console.error('Failed to swap Token to ETH:', error);
+      alert('Failed to swap Token to ETH. Please check the console for details.');
     }
   };
 
