@@ -160,7 +160,7 @@ export default function LiquidityPage() {
               onChange={e => setTokenAmount(e.target.value)}
             />
           </div>
-          <Button onClick={handleAddLiquidity}>Add Liquidity</Button>
+          <Button onClick={handleAddLiquidity} variant="outline">Add Liquidity</Button>
         </CardContent>
       </Card>
 
