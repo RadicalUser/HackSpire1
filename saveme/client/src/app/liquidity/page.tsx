@@ -69,7 +69,7 @@ export default function LiquidityPage() {
       const tokenBalance = await tokenContract.balanceOf(LIQUIDITY_POOL_ADDRESS)
       setTokenBalance(ethers.formatUnits(tokenBalance, 18))
       console.log('Token balance Fetched');
-      
+
     } catch (err: any) {
       console.error('Fetch pool balances error:', err)
       alert('Failed to fetch pool balances. Check console.')
@@ -220,6 +220,7 @@ export default function LiquidityPage() {
           </Button>
         </CardContent>
       </Card>
+      
 
       {/* Refresh Balances Button */}
       <Card>
