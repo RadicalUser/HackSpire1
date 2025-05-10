@@ -39,7 +39,7 @@ export default function LiquidityPage() {
       setSigner(signer)
       const contract = new ethers.Contract(
         LIQUIDITY_POOL_ADDRESS,
-        LiquidityPoolABI,
+        LiquidityPoolABI.abi,
         signer
       )
       setPoolContract(contract)
@@ -68,8 +68,8 @@ export default function LiquidityPage() {
       const tokenContract = new ethers.Contract(TOKEN_ADDRESS, ERC20ABI, signer)
       const tokenBalance = await tokenContract.balanceOf(LIQUIDITY_POOL_ADDRESS)
       setTokenBalance(ethers.formatUnits(tokenBalance, 18))
-      alert('Pool balances fetched successfully!');
       console.log('Token balance Fetched');
+      
     } catch (err: any) {
       console.error('Fetch pool balances error:', err)
       alert('Failed to fetch pool balances. Check console.')
@@ -116,6 +116,7 @@ export default function LiquidityPage() {
       alert('Web3 not initialized.')
       return
     }
+
     try {
       const shares = ethers.parseUnits(lpShares, 18)
       const tx = await poolContract.removeLiquidity(shares)
