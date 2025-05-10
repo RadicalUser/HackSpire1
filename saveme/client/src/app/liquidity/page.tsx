@@ -24,6 +24,8 @@ export default function LiquidityPage() {
   const [ethAmount, setEthAmount] = useState('')
   const [tokenAmount, setTokenAmount] = useState('')
   const [lpShares, setLpShares] = useState('')
+  const [ethBalance, setEthBalance] = useState('0')
+  const [tokenBalance, setTokenBalance] = useState('0')
 
   // Initialize provider, signer, and pool contract
   useEffect(() => {
@@ -43,6 +45,39 @@ export default function LiquidityPage() {
       setPoolContract(contract)
     }
     init()
+  }, [])
+
+  // Fetch pool balances
+  const fetchPoolBalances = async () => {
+    if (!signer) {
+      alert('Web3 not initialized. Refresh the page.')
+      return
+    }
+    try {
+      const provider = signer.provider
+      if (!provider) {
+        alert('Provider not found.')
+        return
+      }
+
+      // Fetch ETH balance
+      const ethBalance = await provider.getBalance(LIQUIDITY_POOL_ADDRESS)
+      setEthBalance(ethers.formatEther(ethBalance))
+
+      // Fetch Token balance
+      const tokenContract = new ethers.Contract(TOKEN_ADDRESS, ERC20ABI, signer)
+      const tokenBalance = await tokenContract.balanceOf(LIQUIDITY_POOL_ADDRESS)
+      setTokenBalance(ethers.formatUnits(tokenBalance, 18))
+      alert('Pool balances fetched successfully!');
+      console.log('Token balance Fetched');
+    } catch (err: any) {
+      console.error('Fetch pool balances error:', err)
+      alert('Failed to fetch pool balances. Check console.')
+    }
+  }
+
+  useEffect(() => {
+    fetchPoolBalances()
   }, [])
 
   // Add liquidity (ETH + token)
@@ -181,6 +216,26 @@ export default function LiquidityPage() {
           </div>
           <Button variant="destructive" onClick={handleRemoveLiquidity}>
             Remove Liquidity
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Refresh Balances Button */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pool Balances</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex-1 space-y-1">
+            <Label htmlFor="eth-balance">ETH Balance</Label>
+            <p id="eth-balance">{ethBalance} ETH</p>
+          </div>
+          <div className="flex-1 space-y-1">
+            <Label htmlFor="token-balance">Token Balance</Label>
+            <p id="token-balance">{tokenBalance} Tokens</p>
+          </div>
+          <Button onClick={fetchPoolBalances} variant="outline">
+            Refresh Balances
           </Button>
         </CardContent>
       </Card>
