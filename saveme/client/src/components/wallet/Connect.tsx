@@ -5,6 +5,14 @@ import { useWalletContext } from '../../context/WalletContext';
 export const Connect = () => {
   const { isConnected } = useWalletContext();
 
+  const SCAM_DOMAINS = ['scam.example', 'evil.com'];
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (SCAM_DOMAINS.includes(host)) {
+      console.warn('Warning: This dApp is flagged as suspicious');
+    }
+  }
+
   return (
     <ConnectButton.Custom>
       {({

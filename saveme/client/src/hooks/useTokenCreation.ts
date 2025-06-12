@@ -88,7 +88,7 @@ export function useTokenCreation() {
 
   // — Wait for that hash (string) to be mined —
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({ hash, enabled: !!hash });
+    useWaitForTransactionReceipt({ hash, query: { enabled: !!hash } });
 
   // — Watch & decode the TokenCreated event —
   useWatchContractEvent({
