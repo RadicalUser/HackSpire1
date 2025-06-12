@@ -10,6 +10,7 @@ export default function Navbar() {
         <Link href="/transfer">Send</Link>
         <Link href="/transactions">Transactions</Link>
         <Link href="/tokens">Tokens</Link>
+        <Link href="/detect">Detect</Link>
         <Link href="/create">Create</Link>
         <Link href="/liquidity">Liquidity</Link>
         <Link href="/graph">Chart</Link>

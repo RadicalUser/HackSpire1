@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   FaChevronRight,
   FaExchangeAlt,
   FaExternalLinkAlt,
   FaBug,
+  FaExclamationTriangle,
 } from 'react-icons/fa';
 import {
   useTransactionHistory,
@@ -50,12 +51,39 @@ export default function TransactionList({
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [anomalies, setAnomalies] = useState<Record<string, boolean>>({});
   const pageSize = limit || 5;
 
   const { transactions, isLoading, error } = useTransactionHistory();
   const { address, isConnected } = useWalletContext();
   const publicClient = usePublicClient();
   const { data: blockNumber } = useBlockNumber();
+
+  useEffect(() => {
+    const runDetection = async () => {
+      try {
+        const res = await fetch('/api/detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transactions }),
+        });
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data.results;
+        if (Array.isArray(list)) {
+          const map: Record<string, boolean> = {};
+          list.forEach((r: any) => {
+            if (r.transaction_hash) {
+              map[r.transaction_hash] = r.is_anomaly;
+            }
+          });
+          setAnomalies(map);
+        }
+      } catch (err) {
+        console.error('Anomaly detection failed', err);
+      }
+    };
+    if (transactions.length) runDetection();
+  }, [transactions]);
 
   if (showDebug) {
     return (
@@ -221,6 +249,11 @@ export default function TransactionList({
                 <p className="text-white font-medium">
                   {formatValue(tx.value)}
                 </p>
+                {anomalies[tx.hash] && (
+                  <p className="text-red-400 text-sm flex items-center gap-1">
+                    <FaExclamationTriangle /> Suspicious
+                  </p>
+                )}
                 <p className="text-foreground text-sm">
                   {tx.isIncoming ? 'From: ' : 'To: '}
                   {shortenAddress(tx.isIncoming ? tx.from : tx.to || '')}
