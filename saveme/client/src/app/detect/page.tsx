@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
-import BlurText from '../components/animated/BlurText';
+import BlurText from '../../components/animated/BlurText';
 import { FaShieldAlt } from 'react-icons/fa';
-import { Connect } from '../components/wallet/Connect';
+import { Connect } from '../../components/wallet/Connect';
 
 export default function DetectPage() {
   const [input, setInput] = useState('');
