@@ -4,6 +4,7 @@ import CircularText from '../components/animated/Circular';
 import { FaEthereum, FaShieldAlt, FaRocket, FaLock } from 'react-icons/fa';
 import { Connect } from '../components/wallet/Connect';
 import RotatingText from '../components/animated/Rotate';
+import Link from 'next/link';
 
 export default function Home() {
   return (
@@ -30,7 +31,15 @@ export default function Home() {
             funds from suspicious activity.
           </p>
 
-          <Connect />
+          <div className="flex gap-4">
+            <Connect />
+            <Link
+              href="/score"
+              className="flex items-center gap-2 bg-foreground/10 hover:bg-foreground/20 rounded-lg px-4 py-2 text-white transition-colors"
+            >
+              Check Score
+            </Link>
+          </div>
         </div>
         <div className="relative">
           <CircularText
