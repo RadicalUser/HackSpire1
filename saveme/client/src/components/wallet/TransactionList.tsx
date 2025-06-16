@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FaChevronRight,
   FaExchangeAlt,
@@ -52,6 +52,9 @@ export default function TransactionList({
   const [selected, setSelected] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
   const [anomalies, setAnomalies] = useState<Record<string, boolean>>({});
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanLoading, setScanLoading] = useState<string | null>(null); // store tx hash being scanned
   const pageSize = limit || 5;
 
   const { transactions, isLoading, error } = useTransactionHistory();
@@ -292,6 +295,38 @@ export default function TransactionList({
                     <p className="text-white">{formatValue(tx.value)}</p>
                   </div>
                 </div>
+                <div className="flex gap-4 mt-4">
+                  <button
+                    onClick={async () => {
+                      setScanLoading(tx.hash);
+                      setScanResult(null);
+                      setScanError(null);
+                      try {
+                        const res = await fetch('/api/detect', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ transactions: [tx] }),
+                        });
+                        const data = await res.json();
+                        setScanResult(data);
+                      } catch (err) {
+                        setScanError('Scan failed');
+                      } finally {
+                        setScanLoading(null);
+                      }
+                    }}
+                    className="bg-blue-500 text-white px-4 py-2 rounded"
+                    disabled={scanLoading === tx.hash}
+                  >
+                    {scanLoading === tx.hash ? 'Scanning...' : 'Scan for Security'}
+                  </button>
+                </div>
+                {scanResult && (
+                  <div className="mt-2 text-white">
+                    <pre>{JSON.stringify(scanResult, null, 2)}</pre>
+                  </div>
+                )}
+                {scanError && <div className="text-red-400">{scanError}</div>}
                 <div className="flex justify-end">
                   <a
                     href={`https://etherscan.io/tx/${tx.hash}`}
