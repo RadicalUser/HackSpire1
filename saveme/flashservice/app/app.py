@@ -12,15 +12,23 @@ import json
 from datetime import datetime
 import logging
 from logging.handlers import RotatingFileHandler
+import traceback
+import importlib.util
 
 # Import configuration
 from .config import DEBUG, HOST, PORT, API_PREFIX, MODEL_PATH
 
-# Add the model package to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../model')))
+# Dynamically import main.py from the correct absolute path
+main_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../model/src/main.py'))
+if not os.path.exists(main_path):
+    raise ImportError(f"main.py not found at {main_path}")
+spec = importlib.util.spec_from_file_location('main', main_path)
+main = importlib.util.module_from_spec(spec)
+sys.modules['main'] = main
+spec.loader.exec_module(main)
 
-# Import the model functions
-from src.main import detect_anomalies, setup_environment
+detect_anomalies = main.detect_anomalies
+setup_environment = main.setup_environment
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -107,6 +115,7 @@ def detect_anomalies_endpoint():
         
         except Exception as e:
             app.logger.error(f"Error in model processing: {str(e)}", exc_info=True)
+            traceback.print_exc()  # Log full traceback
             return jsonify({
                 'error': 'Error processing transactions', 
                 'message': str(e)
@@ -114,6 +123,7 @@ def detect_anomalies_endpoint():
     
     except Exception as e:
         app.logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        traceback.print_exc()  # Log full traceback
         return jsonify({
             'error': 'Internal server error', 
             'message': str(e)

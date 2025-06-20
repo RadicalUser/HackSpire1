@@ -7,10 +7,18 @@ export async function POST(request: Request) {
     const body = await request.json();
     const res = await fetch(DETECT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify(body),
     });
-    const data = await res.json();
+    const text = await res.text();
+    console.log('DETECT SERVICE RAW RESPONSE:', text); // Log raw response for debugging
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = { error: 'Invalid JSON from backend', raw: text };
+    }
+    if (!res.ok) throw new Error(data.error || 'Detection failed');
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
     console.error('Detection route error:', err);
